@@ -7,6 +7,5 @@ if len(sys.argv)==1:
 	sys.exit(0)
 
 sps = staticplayer.PlaylistSite(configFilePath=sys.argv[1])
-sps.generateAll()
-sps.copyAudioFiles()
+sps.generateSite()
 sps.reportVBR()

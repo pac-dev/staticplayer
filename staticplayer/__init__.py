@@ -1,28 +1,44 @@
 #!/usr/bin/env python
 """Static Online Playlist Generator."""
 
-import os, shutil, codecs, jinja2, yaml, urllib.parse, mutagen.mp3, mutagen.easyid3
-
+import os, shutil, codecs, json, jinja2, yaml, urllib.parse
+from mutagen import mp3, easyid3
 if os.name != "nt":
 	import ntpath
 	
-def recursive_overwrite(src, dest, ignore=None):
+		
+def recursiveOverwrite(src, dest, ignore=None):
+	copiedFiles = []
 	if os.path.isdir(src):
 		if not os.path.isdir(dest):
 			os.makedirs(dest)
 		files = os.listdir(src)
 		ignored = set() if ignore is None else ignore(src, files)
 		for f in [f for f in files if f not in ignored]:
-			recursive_overwrite(os.path.join(src, f), 
+			copiedFiles += recursiveOverwrite(
+				os.path.join(src, f), 
 				os.path.join(dest, f), 
-				ignore)
+				ignore
+			)
 	else:
 		shutil.copyfile(src, dest)
+		return [dest]
+	return copiedFiles
 
 class PlaylistSite:
 	def __init__(self, configFilePath='staticplayer.yml'):
 		self.configFilePath = configFilePath
 		self.parseConfig() # todo config parser error
+		self.listFileName = os.path.splitext(configFilePath)[0] + ".file_list"
+		try:
+			with open(self.listFileName, 'r') as listFile:
+				self.oldFilesInOutput = json.load(listFile)
+		except IOError as err:
+			self.oldFilesInOutput = {"webFiles":[], "audioFiles":[]}
+		except:
+			print("skipping broken file list")
+			self.oldFilesInOutput = {"webFiles":[], "audioFiles":[]}
+		self.newFilesInOutput = {"webFiles":[], "audioFiles":[]}
 		self.analyzedFiles = []
 		for pl in self.configData["playlists"]:
 			pl["tracks"] = self.expandPlaylistFiles(pl["tracks"]) # todo playlist parser error
@@ -32,6 +48,7 @@ class PlaylistSite:
 		configFile = open(self.configFilePath)
 		self.configData = yaml.load(configFile)
 		configFile.close()
+		self.outPath = self.configData["outputPath"]
 		
 	def withChRoot(self, playlistPath, trackPath):
 		for chRoot in self.configData["inputPlaylistChRoots"]:
@@ -73,8 +90,8 @@ class PlaylistSite:
 		return newTracks
 	
 	def inspectAudioFile(self, filePath, list=None):
-		id3 = mutagen.easyid3.EasyID3(filePath)
-		mp3 = mutagen.mp3.MP3(filePath)
+		id3 = easyid3.EasyID3(filePath)
+		mp3data = mp3.MP3(filePath)
 		title = id3["title"][0] if "title" in id3 else os.path.splitext(os.path.basename(filePath))[0]
 		artist = id3["artist"][0] if "artist" in id3 else "?"
 		album = id3["album"][0] if "album" in id3 else "?"
@@ -82,7 +99,7 @@ class PlaylistSite:
 		self.analyzedFiles.append({
 			"path": filePath,
 			"targetSubdir": subdir,
-			"isVBR": mp3.info.bitrate_mode in (mutagen.mp3.BitrateMode.VBR, mutagen.mp3.BitrateMode.ABR),
+			"isVBR": mp3data.info.bitrate_mode in (mp3.BitrateMode.VBR, mp3.BitrateMode.ABR),
 		})
 		return {
 			"filename": os.path.basename(filePath),
@@ -91,15 +108,23 @@ class PlaylistSite:
 			"title": title,
 			"artist": artist,
 			"album": album,
-			"length": "%d:%02d" % divmod(mp3.info.length, 60)
+			"length": "%d:%02d" % divmod(mp3data.info.length, 60)
 		}
 		
-	def generateAll(self):
-		recursive_overwrite (
+	def generateSite(self):
+		self.generatePages()
+		self.copyAudioFiles()
+		with open(self.listFileName, 'w') as listFile:
+			json.dump(self.newFilesInOutput, listFile, indent=1)
+		print("Site ("+self.configData["pageTitle"]+") successfully generated to "+self.outPath)
+	
+	def generatePages(self):
+		copiedFiles = recursiveOverwrite(
 			self.configData["template"], 
-			self.configData["outputPath"], 
+			self.outPath, 
 			ignore = lambda dir, list: [f for f in list if f.endswith(".jinja")]
 		)
+		self.newFilesInOutput["webFiles"] += copiedFiles
 		# make index.html in root:
 		self.generatePage()
 		# make playlist subdirectories and their index.html:
@@ -112,17 +137,18 @@ class PlaylistSite:
 			templateData.update(playlist)
 		if "showPlaylistList" not in templateData:
 			templateData["showPlaylistList"] = len(templateData["playlists"]) > 1 or playlist is None
-		outPath = templateData["outputPath"]
+		listOutPath = self.outPath
 		if playlist is not None:
-			outPath += templateData["shortName"] + "/"
-		if not os.path.exists(outPath):
-			os.makedirs(outPath)
+			listOutPath += templateData["shortName"] + "/"
+		if not os.path.exists(listOutPath):
+			os.makedirs(listOutPath)
 		templateEnv = jinja2.Environment(loader = jinja2.FileSystemLoader(os.getcwd()))
 		# load the template specified by the config yaml:
 		template = templateEnv.get_template(templateData["template"] + "index.jinja")
-		index = codecs.open(outPath + 'index.html', 'w+', "utf-8")
+		index = codecs.open(listOutPath + 'index.html', 'w+', "utf-8")
 		index.write(template.render(templateData))
 		index.close()
+		self.newFilesInOutput["webFiles"].append(listOutPath+'index.html')
 		
 	def copyAudioFiles(self):
 		if "copyAudioTo" not in self.configData: return
@@ -134,6 +160,7 @@ class PlaylistSite:
 			if not os.path.exists(dst):
 				shutil.copyfile(src["path"], dst)
 			src["path"] = dst
+			self.newFilesInOutput["audioFiles"].append(dst)
 	
 	def reportVBR(self):
 		vbrs = [f["path"] for f in self.analyzedFiles if f["isVBR"]]
