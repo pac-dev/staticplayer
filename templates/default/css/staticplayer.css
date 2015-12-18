@@ -1,0 +1,204 @@
+body {
+	margin: 0;
+	padding: 20px 0 0;
+	font-family: monospace;
+	background-color: #13253C;
+	min-width: 350px;
+	color:#ceca25;
+}
+table {
+	border-collapse: collapse;
+}
+#playlistlist {
+	display: block;
+	background-color: #444;
+	padding-left: 3px;
+	color: #aab;
+	line-height: 17px;
+	padding: 0 3px 1px;
+}
+#playlist_selector {
+	display: inline-block;
+	border: 1px solid #448;
+	padding: 0 26px 0 4px;
+	background-color: #555;
+	position: relative;
+}
+#playlist_dropper {
+	position: absolute;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	width: 18px;
+	height: 16px;
+	background: transparent url("../js/drop-buttons.png") no-repeat scroll;
+	background-position: 50% 2px;
+	border-left: 1px solid #777;
+	cursor: pointer;
+}
+#playlist_dropper.flipped {
+	background-position: 50% -15px;
+}
+#playlist_menu a {
+	display: block;
+	margin-left: 18px;
+	text-decoration: none;
+	color: #ccf;
+}
+#playlist_menu div {
+	margin-left: 18px;
+}
+#track_list {
+}
+.track_item {
+	display: block;
+	border-bottom: 1px solid #00102e;
+	text-decoration: none;
+	position: relative;
+	padding-right: 62px;
+	cursor: pointer;
+}
+.track_item:nth-child(even) {
+	background-color:#0b1d34;
+}
+.track_item:nth-child(odd) {
+	background-color:#03152c;
+}
+.track_item.hover {
+	background-color:#3b4d54;
+}
+.track_item div {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	padding:3px;
+}
+.track_item div.left {
+}
+.track_item div.right {
+	position: absolute;
+	right: 2%;
+	top: 0px;
+	width: 41px;
+	text-align: right;
+}
+#oplayer {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 20px;
+	background-color: #888;
+	color: black;
+}
+.playing_track {
+	color: white;
+}
+
+.audiojs {
+	background: none repeat scroll 0 0 #333;
+	box-shadow: none;
+	font-family: inherit;
+	height: 18px;
+	overflow: hidden;
+	/*width: 140px;*/
+	width: auto;
+	position: relative;
+}
+.audiojs .play-pause {
+	height: 21px;
+	width: 21px;
+	margin: -5px 0px 0px -6px;
+	padding: 0 1px;
+	border: none;
+}
+.audiojs .scrubber {
+	background: none repeat scroll 0 0 #ccc;
+	border: none;
+	height: 16px;
+	margin: 1px;
+	width:auto;
+	position: absolute;
+	right: 59px;
+	left: 88px;
+}
+.audiojs .progress {
+	background: none repeat scroll 0 0 #888;
+	height: 16px;
+	/* text inside the progress bar */
+	overflow: hidden;
+	white-space: nowrap;
+	color: white;
+	cursor:default;
+	padding-top: 1px;
+}
+.audiojs .undertext {
+	/* text under and behind the progress bar, 
+	if a different color is wanted for contrast */
+	overflow: hidden;
+	white-space: nowrap;
+	position:absolute;
+	top:0;
+	left:0;
+	cursor:default;
+	padding-top: 1px;
+}
+.audiojs .loaded {
+	background: none repeat scroll 0 0 #bbb;
+	height: 16px;
+}
+.audiojs .time {
+	display: none;
+}
+.audiojs .error-message {
+	color: #ddd;
+	position: absolute;	
+	height: 16px;
+	margin: 1px;
+	width: auto;
+	right: 59px;
+	left: 88px;
+	line-height: 17px;
+}
+.audiojs .volume {
+	float: right;
+	position: relative;
+	height: 17px;
+}
+.vol-bar-back {
+	background-color: #555;
+	position: absolute;
+	bottom: 0;
+	cursor: pointer;
+}
+.vol-fill {
+	background-color: #aaa;
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 2px;
+}
+.vol-fill-on {
+	background-color: white;
+}
+.extra_button {
+	width: 22px;
+	height: 21px;
+	margin: -5px -1px;
+	padding: 0px 1px;
+	float: left;
+	cursor: pointer;
+	background: transparent url("../js/player-extra-graphics.png") no-repeat scroll;
+}
+.extra_button.previous {
+	background-position: 3px 6px;
+}
+.extra_button.next {
+	background-position: 3px -10px;
+}
+.extra_button.loopall {
+	background-position: 3px -26px;
+}
+.extra_button.loopall.looping {
+	background-position: 3px -42px;
+}

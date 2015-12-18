@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ pageTitle }}</title>
+	<link rel="stylesheet" type="text/css" href="{{ publicPath }}css/staticplayer.css">
+	<script src='{{ publicPath }}js/jquery-2.1.4.min.js'></script>
+	<script src="{{ publicPath }}js/audio.min.js"></script>
+	<script src='{{ publicPath }}js/staticplayer.js'></script>
+	<script type='text/javascript'>
+		playingTracks = [
+			{% for track in tracks %}
+			{
+				artist : "{{track.artist|e}}",
+				title : "{{track.title|e}}",
+				url : "{{track.url|e}}"
+			},
+			{% endfor %}
+		]
+	</script>
+</head>
+
+<body>
+	{% if showPlaylistList %}
+	<div id=playlistlist>
+		{{playlistListHeader}}
+		<div id=playlist_selector>
+			{% if longName is defined %}
+			{{longName|e}}
+			{% else %}
+			(select a playlist)
+			{% endif %}
+			<a id=playlist_dropper></a>
+		</div>
+		<div id=playlist_menu style="display:none">
+			<div>== {{playlistListHeader2}}</div>
+			{% for playlist in playlists %}
+			<a href="{{publicPath}}{{playlist.shortName}}">
+				&gt; {{playlist.longName|e}}
+			</a>
+			{% endfor %}
+			<div>==</div>
+		</div>
+	</div>
+	{% endif %}
+	
+	<div id="track_list">
+		{% for track in tracks %}
+		<a class="track_item hoverable" data-index={{loop.index0}}>
+			<div class="left">
+				<i>{{track.artist|e}}</i> - {{track.title|e}}
+			</div>
+			<div class="right">
+				{{track.length}}
+			</div>
+		</a>
+		{% endfor %}
+	</div>
+	
+	<div id=oplayer>
+		<audio preload=none></audio>
+	</div>
+</body>
+</html>
