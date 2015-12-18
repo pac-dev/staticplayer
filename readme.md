@@ -24,5 +24,6 @@ getting started
 
      python staticplayer-gen.py my-playlists.yml
 
-= prior art
+prior art
+---------
 I'm a fan of [Ampache](http://ampache.github.io) and [Groovebasin](http://groovebasin.com/)! staticplayer is a much smaller project and is not an online media server, but a static site generator. In a nutshell, this means that it does not require a full server, and can instead be hosted on cheap and super-fast static file hosts (such as Amazon S3, Rackspace Cloud Files, or even Github Pages). Being static also means that it has less features, but that's, um, minimalism!
