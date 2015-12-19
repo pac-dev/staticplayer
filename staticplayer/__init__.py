@@ -24,6 +24,16 @@ def recursiveOverwrite(src, dest, ignore=None):
 		shutil.copyfile(src, dest)
 		return [dest]
 	return copiedFiles
+	
+def removeEmptyDirs(root):
+	for dirpath, _, _ in os.walk(root, topdown=False):
+		if dirpath == root:
+			break
+		try:
+			os.rmdir(dirpath)
+		except OSError as ex:
+			pass # not empty
+
 
 class PlaylistSite:
 	def __init__(self, configFilePath='staticplayer.yml'):
@@ -40,6 +50,7 @@ class PlaylistSite:
 			self.oldFilesInOutput = {"webFiles":[], "audioFiles":[]}
 		self.newFilesInOutput = {"webFiles":[], "audioFiles":[]}
 		self.analyzedFiles = []
+		self.oldValidFiles = []
 		for pl in self.configData["playlists"]:
 			pl["tracks"] = self.expandPlaylistFiles(pl["tracks"]) # todo playlist parser error
 			pl["tracks"] = [self.inspectAudioFile(tr,pl) for tr in pl["tracks"]] # todo audio file analysis error
@@ -98,7 +109,7 @@ class PlaylistSite:
 		subdir = list["shortName"]+"/" if list is not None else ""
 		self.analyzedFiles.append({
 			"path": filePath,
-			"targetSubdir": subdir,
+			"targetPath": self.configData["copyAudioTo"] + subdir + os.path.basename(filePath),
 			"isVBR": mp3data.info.bitrate_mode in (mp3.BitrateMode.VBR, mp3.BitrateMode.ABR),
 		})
 		return {
@@ -108,10 +119,26 @@ class PlaylistSite:
 			"title": title,
 			"artist": artist,
 			"album": album,
-			"length": "%d:%02d" % divmod(mp3data.info.length, 60)
+			"length": "%d:%02d" % divmod(mp3data.info.length, 60),
 		}
-		
+	
+	def cleanupOutputDir(self):
+		# delete previous website files
+		for f in self.oldFilesInOutput["webFiles"]:
+			if os.path.exists(f):
+				os.remove(f)
+		# delete outdated audio files
+		oldAudioFiles = [file for file in self.oldFilesInOutput["audioFiles"] if os.path.exists(file)]
+		for oldFile in oldAudioFiles:
+			if oldFile in [file["targetPath"] for file in self.analyzedFiles]:
+				self.oldValidFiles.append(oldFile)
+			else:
+				os.remove(oldFile)
+		removeEmptyDirs(self.configData["copyAudioTo"])
+		removeEmptyDirs(self.outPath)
+	
 	def generateSite(self):
+		self.cleanupOutputDir()
 		self.generatePages()
 		self.copyAudioFiles()
 		with open(self.listFileName, 'w') as listFile:
@@ -152,14 +179,16 @@ class PlaylistSite:
 		
 	def copyAudioFiles(self):
 		if "copyAudioTo" not in self.configData: return
-		outPath = self.configData["copyAudioTo"]
-		for src in self.analyzedFiles:
-			dst = outPath + src["targetSubdir"] + os.path.basename(src["path"])			
+		for fileInfo in self.analyzedFiles:
+			src = fileInfo["path"]
+			dst = fileInfo["targetPath"]
+			fileInfo["path"] = dst
+			if dst in self.oldValidFiles:
+				continue
 			if not os.path.exists(os.path.split(dst)[0]):
 				os.makedirs(os.path.split(dst)[0])
 			if not os.path.exists(dst):
-				shutil.copyfile(src["path"], dst)
-			src["path"] = dst
+				shutil.copyfile(src, dst)
 			self.newFilesInOutput["audioFiles"].append(dst)
 	
 	def reportVBR(self):
