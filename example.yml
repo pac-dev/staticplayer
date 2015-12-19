@@ -1,9 +1,12 @@
 # template file
 template: templates/default/
 
-# everything in this folder will get deleted before generating!
-# except it won't! todo!
+# write website to
 outputPath: example-out/
+
+# if true, root will be a list of playlists
+# if false, root will be the first playlist (other playlists will be ignored)
+multiPlaylist: false
 
 # If defined, audio files will be copied to this directory:
 copyAudioTo: example-out/audio/

@@ -54,6 +54,7 @@ class PlaylistSite:
 		for pl in self.configData["playlists"]:
 			pl["tracks"] = self.expandPlaylistFiles(pl["tracks"]) # todo playlist parser error
 			pl["tracks"] = [self.inspectAudioFile(tr,pl) for tr in pl["tracks"]] # todo audio file analysis error
+			if not self.configData["multiPlaylist"]: break
 	
 	def parseConfig(self):
 		configFile = open(self.configFilePath)
@@ -152,11 +153,14 @@ class PlaylistSite:
 			ignore = lambda dir, list: [f for f in list if f.endswith(".jinja")]
 		)
 		self.newFilesInOutput["webFiles"] += copiedFiles
-		# make index.html in root:
-		self.generatePage()
-		# make playlist subdirectories and their index.html:
-		for pl in self.configData["playlists"]:
-			self.generatePage(pl)
+		if self.configData["multiPlaylist"]:
+			# make index.html in root:
+			self.generatePage()
+			# make playlist subdirectories and their index.html:
+			for pl in self.configData["playlists"]:
+				self.generatePage(pl)
+		else:
+			self.generatePage(self.configData["playlists"][0])
 		
 	def generatePage(self, playlist=None):
 		templateData = self.configData.copy()
@@ -165,7 +169,7 @@ class PlaylistSite:
 		if "showPlaylistList" not in templateData:
 			templateData["showPlaylistList"] = len(templateData["playlists"]) > 1 or playlist is None
 		listOutPath = self.outPath
-		if playlist is not None:
+		if playlist is not None and self.configData["multiPlaylist"]:
 			listOutPath += templateData["shortName"] + "/"
 		if not os.path.exists(listOutPath):
 			os.makedirs(listOutPath)
