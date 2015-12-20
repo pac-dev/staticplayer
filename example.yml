@@ -1,32 +1,50 @@
-# template file
+# staticplayer configuration file #
+
+### LOCAL PATHS ###
+
+# Template to use (can be absolute, relative to this yml or to staticplayer-gen).
 template: templates/default/
 
-# write website to
+# Write website to this folder (absolute or relative to this yml).
 outputPath: example-out/
 
-# if true, root will be a list of playlists
-# if false, root will be the first playlist (other playlists will be ignored)
-multiPlaylist: false
-
-# If defined, audio files will be copied to this directory:
+# If defined, audio files will be copied to this directory (absolute or relative to this yml).
 copyAudioTo: example-out/audio/
+
+# On Linux/OSX, if you reference a playlist on a mounted device with absolute 
+# paths, it might be necessary to re-root the paths to the mount point.
+# Playlists under these mount points will get their paths fixed.
+inputPlaylistChRoots: 
+    - /media/ipod/
+
+
+### PUBLIC PATHS AND URLS ###
+
+# Public path for staticplayer. Can be a full URL or a path starting with
+# domain root (/) but not a relative path.
+publicPath: /
+
+# publicAudioPath follows the same rules as publicPath.
+publicAudioPath: /audio/
+
+
+### DISPLAY SETTINGS ###
+
+# If true, root will be a list of playlists.
+# If false, root will be the first playlist (other playlists will be ignored).
+multiPlaylist: false
 
 # The title can be overridden for each playlist.
 pageTitle: example tiny playlist
 
+# Displayed title and subtitle if we are in multiPlaylist mode.
 playlistListHeader: "Playlists: "
-
 playlistListHeader2: "Playlists on server: example.com:"
 
-# Public path for staticplayer. Can be a full URL or a path relative to the
-# domain (stating with /) but not a relative path. If omitted, it will be /
-publicPath: /
 
-# publicAudioPath follows the same rules as publicPath. If omitted, it will
-# also have the same value.
-publicAudioPath: /audio/
+### PLAYER SETTINGS ###
 
-# Select a random file from the playlist when the page is opened
+# Select a random file from the playlist when the page is opened.
 # wait, I don't remember implementing this...
 # unimplemented
 startRandom: False
@@ -40,14 +58,11 @@ startShuffleEnabled: False
 # unimplemented
 startLoopEnabled: False
 
-# If input playlists contain absolute paths, it's sometimes necessary to change
-# the root of these paths to a lower directory (useful for mounted devices). 
-# Playlists under any of the listed directories will get "chrooted" to that
-# directory:
-inputPlaylistChRoots: 
-    - /media/ipod/
 
-# Remember YAML forces you to indent using spaces
+### PLAYLISTS! ###
+
+# Remember YAML forces you to indent using spaces.
+# Media/playlist paths can be absolute or relative to YAML.
 playlists:
     -
         shortName: tiny
