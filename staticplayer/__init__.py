@@ -37,17 +37,24 @@ def removeEmptyDirs(root):
 
 class PlaylistSite:
 	def __init__(self, configFilePath='staticplayer.yml'):
-		self.configFilePath = configFilePath
+		self.configFilePath = os.path.realpath(configFilePath)
 		self.parseConfig() # todo config parser error
 		self.listFileName = os.path.splitext(configFilePath)[0] + ".file_list"
 		try:
 			with open(self.listFileName, 'r') as listFile:
 				self.oldFilesInOutput = json.load(listFile)
 		except IOError as err:
+			# file_list does not exist yet
 			self.oldFilesInOutput = {"webFiles":[], "audioFiles":[]}
 		except:
+			# json parsing failed
 			print("skipping broken file list")
 			self.oldFilesInOutput = {"webFiles":[], "audioFiles":[]}
+		# file_list should contain relative paths from yml, make them absolute
+		self.oldFilesInOutput = {
+			key:[self.ymlPath2AbsPath(file) for file in files]
+				for key,files in self.oldFilesInOutput.items()
+		}
 		self.newFilesInOutput = {"webFiles":[], "audioFiles":[]}
 		self.analyzedFiles = []
 		self.oldValidFiles = []
@@ -56,11 +63,29 @@ class PlaylistSite:
 			pl["tracks"] = [self.inspectAudioFile(tr,pl) for tr in pl["tracks"]] # todo audio file analysis error
 			if not self.configData["multiPlaylist"]: break
 	
+	def ymlPath2AbsPath(self, path):
+		if os.path.isabs(path):
+			return path
+		else:
+			return os.path.join(os.path.dirname(self.configFilePath), path)
+	
+	def prepareInputPath(self, path):
+		newPath = path
+		if not os.path.isabs(path):
+			newPath = self.ymlPath2AbsPath(path)
+			if not os.path.exists(newPath):
+				newPath = os.path.join(os.path.dirname(__file__), path)
+		if not os.path.exists(newPath):
+			sys.exit("Error: input file not found: "+path)
+		return newPath
+	
 	def parseConfig(self):
 		configFile = open(self.configFilePath)
 		self.configData = yaml.load(configFile)
 		configFile.close()
-		self.outPath = self.configData["outputPath"]
+		self.outPath = self.ymlPath2AbsPath(self.configData["outputPath"])
+		if "copyAudioTo" in self.configData:
+			self.audioOutPath = self.ymlPath2AbsPath(self.configData["copyAudioTo"])
 		
 	def withChRoot(self, playlistPath, trackPath):
 		for chRoot in self.configData["inputPlaylistChRoots"]:
@@ -79,9 +104,10 @@ class PlaylistSite:
 			elif ext == ".m3u8":
 				encoding = "utf-8-sig"
 			else:
-				newTracks.append(entry)
+				newTracks.append(self.prepareInputPath(entry))
 				continue
-			playlistDirectory = os.path.split(entry)[0]
+			entry = self.prepareInputPath(entry)
+			playlistDirectory = os.path.dirname(entry)
 			with codecs.open(entry, "r", encoding) as f:
 				playlistLines = [l for l in f if not l.startswith('#EXTINF')]
 			joined = "".join(playlistLines)
@@ -110,7 +136,7 @@ class PlaylistSite:
 		subdir = list["shortName"]+"/" if list is not None else ""
 		self.analyzedFiles.append({
 			"path": filePath,
-			"targetPath": self.configData["copyAudioTo"] + subdir + os.path.basename(filePath),
+			"targetPath": "" if self.audioOutPath is None else self.audioOutPath + subdir + os.path.basename(filePath),
 			"isVBR": mp3data.info.bitrate_mode in (mp3.BitrateMode.VBR, mp3.BitrateMode.ABR),
 		})
 		return {
@@ -135,34 +161,40 @@ class PlaylistSite:
 				self.oldValidFiles.append(oldFile)
 			else:
 				os.remove(oldFile)
-		removeEmptyDirs(self.configData["copyAudioTo"])
+		removeEmptyDirs(self.audioOutPath)
 		removeEmptyDirs(self.outPath)
 	
 	def generateSite(self):
 		self.cleanupOutputDir()
 		self.generatePages()
 		self.copyAudioFiles()
+		# turn absolute paths into relative from yml so we can write them to file_list
+		relNewFiles = {
+			key:[os.path.relpath(file, os.path.dirname(self.configFilePath)) for file in files]
+				for key,files in self.newFilesInOutput.items()
+		}
 		with open(self.listFileName, 'w') as listFile:
-			json.dump(self.newFilesInOutput, listFile, indent=1)
+			json.dump(relNewFiles, listFile, indent=1)
 		print("Site ("+self.configData["pageTitle"]+") successfully generated to "+self.outPath)
 	
 	def generatePages(self):
+		templateDir = self.prepareInputPath(self.configData["template"])
 		copiedFiles = recursiveOverwrite(
-			self.configData["template"], 
-			self.outPath, 
+			templateDir,
+			self.outPath,
 			ignore = lambda dir, list: [f for f in list if f.endswith(".jinja")]
 		)
 		self.newFilesInOutput["webFiles"] += copiedFiles
 		if self.configData["multiPlaylist"]:
 			# make index.html in root:
-			self.generatePage()
+			self.generatePage(templateDir)
 			# make playlist subdirectories and their index.html:
 			for pl in self.configData["playlists"]:
-				self.generatePage(pl)
+				self.generatePage(templateDir, pl)
 		else:
-			self.generatePage(self.configData["playlists"][0])
+			self.generatePage(templateDir, self.configData["playlists"][0])
 		
-	def generatePage(self, playlist=None):
+	def generatePage(self, templateDir, playlist=None):
 		templateData = self.configData.copy()
 		if playlist is not None:
 			templateData.update(playlist)
@@ -173,24 +205,25 @@ class PlaylistSite:
 			listOutPath += templateData["shortName"] + "/"
 		if not os.path.exists(listOutPath):
 			os.makedirs(listOutPath)
-		templateEnv = jinja2.Environment(loader = jinja2.FileSystemLoader(os.getcwd()))
+		templateEnv = jinja2.Environment(loader = jinja2.FileSystemLoader(templateDir))
 		# load the template specified by the config yaml:
-		template = templateEnv.get_template(templateData["template"] + "index.jinja")
+		
+		template = templateEnv.get_template("index.jinja")
 		index = codecs.open(listOutPath + 'index.html', 'w+', "utf-8")
 		index.write(template.render(templateData))
 		index.close()
 		self.newFilesInOutput["webFiles"].append(listOutPath+'index.html')
 		
 	def copyAudioFiles(self):
-		if "copyAudioTo" not in self.configData: return
+		if self.audioOutPath is None: return
 		for fileInfo in self.analyzedFiles:
 			src = fileInfo["path"]
 			dst = fileInfo["targetPath"]
 			fileInfo["path"] = dst
 			if dst in self.oldValidFiles:
 				continue
-			if not os.path.exists(os.path.split(dst)[0]):
-				os.makedirs(os.path.split(dst)[0])
+			if not os.path.exists(os.path.dirname(dst)):
+				os.makedirs(os.path.dirname(dst))
 			if not os.path.exists(dst):
 				shutil.copyfile(src, dst)
 			self.newFilesInOutput["audioFiles"].append(dst)
