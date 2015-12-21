@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 """Static Online Playlist Generator."""
 
-import os, shutil, codecs, json, jinja2, yaml, urllib.parse
+import sys, os, shutil, codecs, json, jinja2, yaml, __main__
 from mutagen import mp3, easyid3
+try:
+	from urllib.parse import quote
+except ImportError:
+	from urllib import quote
 if os.name != "nt":
 	import ntpath
 	
@@ -71,12 +75,19 @@ class PlaylistSite:
 	
 	def prepareInputPath(self, path):
 		newPath = path
+		errorPaths = []
 		if not os.path.isabs(path):
 			newPath = self.ymlPath2AbsPath(path)
 			if not os.path.exists(newPath):
-				newPath = os.path.join(os.path.dirname(__file__), path)
+				errorPaths.append(newPath)
+				newPath = os.path.join(os.path.dirname(__main__.__file__), path)
 		if not os.path.exists(newPath):
-			sys.exit("Error: input file not found: "+path)
+			errorPaths.append(newPath)
+			raise IOError("Input file not found: "+
+				os.path.basename(path)+
+				"\nAttempted the following paths:\n"+
+				"\n".join(errorPaths)
+			)
 		return newPath
 	
 	def parseConfig(self):
@@ -120,6 +131,10 @@ class PlaylistSite:
 					if ntpath.isabs(line):
 						line = ntpath.splitdrive(line)[1]
 					line = line.replace('\\', '/')
+				if os.name == "nt" and os.path.isabs(line):
+					line = os.path.normpath(line)
+					if (line[0]=='\\'):
+						line = os.path.splitdrive(playlistDirectory)[0]+line
 				if os.path.isabs(line):
 					line = self.withChRoot(entry, line)
 				else:
@@ -142,7 +157,7 @@ class PlaylistSite:
 		return {
 			"filename": os.path.basename(filePath),
 			"url": self.configData["publicAudioPath"] 
-			+ subdir + urllib.parse.quote(os.path.basename(filePath).encode("utf-8")),
+			+ subdir + quote(os.path.basename(filePath).encode("utf-8")),
 			"title": title,
 			"artist": artist,
 			"album": album,
@@ -157,7 +172,7 @@ class PlaylistSite:
 		# delete outdated audio files
 		oldAudioFiles = [file for file in self.oldFilesInOutput["audioFiles"] if os.path.exists(file)]
 		for oldFile in oldAudioFiles:
-			if oldFile in [file["targetPath"] for file in self.analyzedFiles]:
+			if os.path.normpath(oldFile) in [os.path.normpath(file["targetPath"]) for file in self.analyzedFiles]:
 				self.oldValidFiles.append(oldFile)
 			else:
 				os.remove(oldFile)
