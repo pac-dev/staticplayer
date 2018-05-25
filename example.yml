@@ -8,13 +8,17 @@ template: templates/default/
 # Write website to this folder (absolute or relative to this yml).
 outputPath: example-out/
 
-# If defined, audio files will be copied to this directory (absolute or relative to this yml).
+# If defined, audio files will be copied or transcoded to this directory 
+# (absolute or relative to this yml).
 copyAudioTo: example-out/audio/
 
-# On Linux/OSX, if you reference a playlist on a mounted device with absolute 
-# paths, it might be necessary to re-root the paths to the mount point.
+# If defined, this exact path or command will be used instead of the default, "ffmpeg".
+ffmpegPath: C:\cygwin\usr\local\bin\ffmpeg.exe
+
+# On Linux/OSX, if you reference a playlist with absolute paths on a mounted
+# device, it might be necessary to prepend the mount point to the paths.
 # Playlists under these mount points will get their paths fixed.
-inputPlaylistChRoots: 
+inputPlaylistMountpoints:
     - /media/ipod/
 
 
@@ -32,7 +36,7 @@ publicAudioPath: /audio/
 
 # If true, root will be a list of playlists.
 # If false, root will be the first playlist (other playlists will be ignored).
-multiPlaylist: false
+multiPlaylist: true
 
 # The title can be overridden for each playlist.
 pageTitle: example tiny playlist
@@ -47,16 +51,28 @@ playlistListHeader2: "Playlists on server: example.com:"
 # Select a random file from the playlist when the page is opened.
 # wait, I don't remember implementing this...
 # unimplemented
-startRandom: False
+startRandom: false
 
 # unimplemented
-autoPlay: False
+autoPlay: false
 
 # unimplemented
-startShuffleEnabled: False
+startShuffleEnabled: false
 
 # unimplemented
-startLoopEnabled: False
+startLoopEnabled: false
+
+
+### COPY/TRANSCODE ###
+
+# Enable transcoding (requires ffmpeg). All final files must be CBR MP3 for the
+# web player to work correctly across all browsers. You can set this to false
+# for experimental purposes.
+transcode: true
+
+# Files that are not already CBR MP3 will be transcoded to the following
+# bitrate.
+bitrate: 192k
 
 
 ### PLAYLISTS! ###
@@ -67,5 +83,10 @@ playlists:
     -
         shortName: tiny
         longName: tiny example playlist!
+        tracks:
+            - example-playlist-in/some tiny tracks.m3u8
+    -
+        shortName: tiny2
+        longName: tiny example playlist2!
         tracks:
             - example-playlist-in/some tiny tracks.m3u8

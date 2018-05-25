@@ -9,6 +9,7 @@ vbr_list.txt
 # python stuff
 __pycache__/
 *.pyc
+*.stackdump
 
 # =========================
 # Operating System Files
